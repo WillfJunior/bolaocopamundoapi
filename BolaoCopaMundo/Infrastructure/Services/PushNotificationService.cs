@@ -38,6 +38,55 @@ public class PushNotificationService(
         await SendToSubscriptionsAsync(subscriptions, title, body, data, vapid);
     }
 
+    public async Task<bool> SendWelcomeAsync(Guid userId)
+    {
+        var vapid = GetVapidDetails();
+
+        var subscriptions = await context.PushSubscriptions
+            .Where(s => s.UserId == userId)
+            .ToListAsync();
+
+        if (subscriptions.Count == 0) return false;
+
+        if (vapid is null) return true;
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            title = "Bolão Copa 2026 ⚽",
+            body  = "Boa! Agora você fica por dentro de tudo — palpites, resultados e ranking em tempo real. Bora ganhar! 🏆"
+        });
+
+        var stale = new List<Guid>();
+        foreach (var sub in subscriptions)
+        {
+            try
+            {
+                var client = new WebPushClient();
+                var webSub = new WebPush.PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
+                await client.SendNotificationAsync(webSub, payload, vapid);
+            }
+            catch (WebPushException ex) when (
+                ex.StatusCode is System.Net.HttpStatusCode.NotFound or
+                                 System.Net.HttpStatusCode.Gone)
+            {
+                stale.Add(sub.Id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Falha ao enviar welcome push para {Endpoint}", sub.Endpoint);
+            }
+        }
+
+        if (stale.Count > 0)
+        {
+            context.PushSubscriptions.RemoveRange(
+                context.PushSubscriptions.Where(s => stale.Contains(s.Id)));
+            await context.SaveChangesAsync();
+        }
+
+        return true;
+    }
+
     public async Task SendToAllAsync(string title, string body, object? data = null)
     {
         var vapid = GetVapidDetails();

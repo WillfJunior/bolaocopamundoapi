@@ -33,8 +33,8 @@ public class PredictionService(AppDbContext context)
         if (match.Status != MatchStatus.Scheduled)
             throw new InvalidOperationException("Não é possível palpitar em jogos que já começaram ou encerraram.");
 
-        if (match.MatchDate <= DateTime.UtcNow)
-            throw new InvalidOperationException("O prazo para palpitar neste jogo encerrou.");
+        if (match.MatchDate <= DateTime.UtcNow.AddHours(1))
+            throw new InvalidOperationException("O prazo para palpitar neste jogo encerrou. Palpites são bloqueados 1 hora antes do início.");
 
         if (match.HomeTeamId is null || match.AwayTeamId is null)
             throw new InvalidOperationException("Os times deste jogo ainda não foram definidos.");

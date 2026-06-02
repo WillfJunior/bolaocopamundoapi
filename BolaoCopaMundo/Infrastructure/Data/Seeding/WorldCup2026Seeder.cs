@@ -62,7 +62,7 @@ public class WorldCup2026Seeder(AppDbContext context, ILogger<WorldCup2026Seeder
             // ── Grupo C ─────────────────────────────────────────────
             ("Brasil",               "BRA", "C"),
             ("Marrocos",             "MAR", "C"),
-            ("Haiti",                "HAI", "C"),
+            ("Haiti",                "HTI", "C"),
             ("Escócia",              "SCO", "C"),
             // ── Grupo D ─────────────────────────────────────────────
             ("Estados Unidos",       "USA", "D"),
@@ -117,7 +117,7 @@ public class WorldCup2026Seeder(AppDbContext context, ILogger<WorldCup2026Seeder
         {
             ["MEX"] = "mx", ["RSA"] = "za", ["KOR"] = "kr", ["CZE"] = "cz",
             ["CAN"] = "ca", ["BIH"] = "ba", ["QAT"] = "qa", ["SUI"] = "ch",
-            ["BRA"] = "br", ["MAR"] = "ma", ["HAI"] = "ht", ["SCO"] = "gb-sct",
+            ["BRA"] = "br", ["MAR"] = "ma", ["HTI"] = "ht", ["SCO"] = "gb-sct",
             ["USA"] = "us", ["PAR"] = "py", ["AUS"] = "au", ["TUR"] = "tr",
             ["GER"] = "de", ["CUW"] = "cw", ["CIV"] = "ci", ["ECU"] = "ec",
             ["NED"] = "nl", ["JPN"] = "jp", ["SWE"] = "se", ["TUN"] = "tn",
@@ -168,7 +168,7 @@ public class WorldCup2026Seeder(AppDbContext context, ILogger<WorldCup2026Seeder
 
             // Grupo C
             ("BRA","MAR","C", new DateTime(2026,6,13,22,0,0,DateTimeKind.Utc), "MetLife Stadium, Nova York/NJ",         1),
-            ("HAI","SCO","C", new DateTime(2026,6,14, 1,0,0,DateTimeKind.Utc), "Gillette Stadium, Boston",              1),
+            ("HTI","SCO","C", new DateTime(2026,6,14, 1,0,0,DateTimeKind.Utc), "Gillette Stadium, Boston",              1),
 
             // Grupo E
             ("GER","CUW","E", new DateTime(2026,6,14,17,0,0,DateTimeKind.Utc), "NRG Stadium, Houston",                  1),
@@ -220,7 +220,7 @@ public class WorldCup2026Seeder(AppDbContext context, ILogger<WorldCup2026Seeder
 
             // Grupo C
             ("SCO","MAR","C", new DateTime(2026,6,19,22,0,0,DateTimeKind.Utc), "Gillette Stadium, Boston",              2),
-            ("BRA","HAI","C", new DateTime(2026,6,20, 0,30,0,DateTimeKind.Utc),"Lincoln Financial Field, Philadelphia", 2),
+            ("BRA","HTI","C", new DateTime(2026,6,20, 0,30,0,DateTimeKind.Utc),"Lincoln Financial Field, Philadelphia", 2),
 
             // Grupo F
             ("TUN","JPN","F", new DateTime(2026,6,20, 4,0,0,DateTimeKind.Utc), "Estadio BBVA, Monterrey",               2),
@@ -264,7 +264,7 @@ public class WorldCup2026Seeder(AppDbContext context, ILogger<WorldCup2026Seeder
 
             // Grupo C — simultâneos
             ("SCO","BRA","C", new DateTime(2026,6,24,22,0,0,DateTimeKind.Utc), "Hard Rock Stadium, Miami",              3),
-            ("MAR","HAI","C", new DateTime(2026,6,24,22,0,0,DateTimeKind.Utc), "Mercedes-Benz Stadium, Atlanta",        3),
+            ("MAR","HTI","C", new DateTime(2026,6,24,22,0,0,DateTimeKind.Utc), "Mercedes-Benz Stadium, Atlanta",        3),
 
             // Grupo A — simultâneos
             ("CZE","MEX","A", new DateTime(2026,6,25, 1,0,0,DateTimeKind.Utc), "Estadio Azteca, Cidade do México",      3),

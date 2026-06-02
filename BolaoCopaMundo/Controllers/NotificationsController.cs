@@ -49,6 +49,14 @@ public class NotificationsController(
         return Ok();
     }
 
+    [HttpPost("welcome")]
+    public async Task<IActionResult> SendWelcome()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var found = await pushService.SendWelcomeAsync(userId);
+        return found ? Ok() : NoContent();
+    }
+
     [HttpDelete("unsubscribe")]
     public async Task<IActionResult> Unsubscribe([FromQuery] string endpoint)
     {
