@@ -7,6 +7,7 @@ public class BolaoGroup
     public string? Description { get; set; }
     public Guid CreatorId { get; set; }
     public string InviteCode { get; set; } = string.Empty;
+    public string? PixKey { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
 

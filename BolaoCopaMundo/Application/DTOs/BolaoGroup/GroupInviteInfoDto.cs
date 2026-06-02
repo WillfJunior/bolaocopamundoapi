@@ -7,6 +7,7 @@ public record GroupInviteInfoDto(
     string InviteCode,
     string GroupName,
     string? Description,
+    string? PixKey,
     string CreatorName,
     int MemberCount,
     bool IsAlreadyMember,

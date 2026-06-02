@@ -13,6 +13,7 @@ public class BolaoGroupConfiguration : IEntityTypeConfiguration<BolaoGroup>
         builder.Property(g => g.Name).IsRequired().HasMaxLength(100);
         builder.Property(g => g.Description).HasMaxLength(500);
         builder.Property(g => g.InviteCode).IsRequired().HasMaxLength(20);
+        builder.Property(g => g.PixKey).HasMaxLength(150);
         builder.HasIndex(g => g.InviteCode).IsUnique();
         builder.Property(g => g.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 

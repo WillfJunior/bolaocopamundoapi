@@ -51,6 +51,14 @@ public class BolaoGroupsController(BolaoGroupService service) : ControllerBase
     public async Task<ActionResult<List<BolaoGroupMemberDto>>> GetMembers(Guid id)
         => Ok(await service.GetMembersAsync(id, GetUserId()));
 
+    [HttpGet("{id:guid}/members/pending")]
+    public async Task<ActionResult<List<BolaoGroupMemberDto>>> GetPendingMembers(Guid id)
+        => Ok(await service.GetPendingMembersAsync(id, GetUserId()));
+
+    [HttpPost("{id:guid}/members/{userId:guid}/approve")]
+    public async Task<ActionResult<BolaoGroupMemberDto>> ApproveMember(Guid id, Guid userId)
+        => Ok(await service.ApproveMemberAsync(id, GetUserId(), userId));
+
     [HttpGet("{id:guid}/ranking")]
     public async Task<ActionResult<List<RankingEntryDto>>> GetRanking(Guid id)
         => Ok(await service.GetGroupRankingAsync(id, GetUserId()));

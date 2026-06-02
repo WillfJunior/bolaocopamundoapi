@@ -3,20 +3,25 @@ using BolaoCopaMundo.Application.DTOs.Ranking;
 using BolaoCopaMundo.Domain.Entities;
 using BolaoCopaMundo.Domain.Enums;
 using BolaoCopaMundo.Infrastructure.Data;
+using BolaoCopaMundo.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace BolaoCopaMundo.Application.Services;
 
-public class BolaoGroupService(AppDbContext context, IConfiguration configuration)
+public class BolaoGroupService(AppDbContext context, IConfiguration configuration, PushNotificationService pushService)
 {
     private string AppBaseUrl =>
         configuration["AppBaseUrl"] ?? "http://localhost:5196";
 
     public async Task<BolaoGroupDto> CreateAsync(Guid creatorId, CreateBolaoGroupRequest request)
     {
-        var inviteCode = GenerateInviteCode();
+        var creator = await context.Users.FindAsync(creatorId)
+            ?? throw new KeyNotFoundException("Usuário não encontrado.");
 
-        // Garante código único
+        if (!creator.IsAdmin)
+            throw new UnauthorizedAccessException("Apenas administradores podem criar grupos.");
+
+        var inviteCode = GenerateInviteCode();
         while (await context.BolaoGroups.AnyAsync(g => g.InviteCode == inviteCode))
             inviteCode = GenerateInviteCode();
 
@@ -24,6 +29,7 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         {
             Name = request.Name,
             Description = request.Description,
+            PixKey = request.PixKey,
             CreatorId = creatorId,
             InviteCode = inviteCode,
             CreatedAt = DateTime.UtcNow
@@ -32,7 +38,6 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         context.BolaoGroups.Add(group);
         await context.SaveChangesAsync();
 
-        // Criador entra automaticamente como Admin+Active
         context.BolaoGroupMembers.Add(new BolaoGroupMember
         {
             GroupId = group.Id,
@@ -44,9 +49,7 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         });
 
         await context.SaveChangesAsync();
-
-        var creator = await context.Users.FindAsync(creatorId);
-        return ToDto(group, creator!, MemberRole.Admin, MemberStatus.Active, 1);
+        return ToDto(group, creator, MemberRole.Admin, MemberStatus.Active, 1, 0);
     }
 
     public async Task<List<BolaoGroupDto>> GetMyGroupsAsync(Guid userId)
@@ -63,7 +66,8 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             m.Group.Creator,
             m.Role,
             m.Status,
-            m.Group.Members.Count(x => x.Status == MemberStatus.Active)
+            m.Group.Members.Count(x => x.Status == MemberStatus.Active),
+            m.Group.Members.Count(x => x.Status == MemberStatus.Pending)
         )).ToList();
     }
 
@@ -79,7 +83,8 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             ?? throw new UnauthorizedAccessException("Você não faz parte deste grupo.");
 
         return ToDto(group, group.Creator, membership.Role, membership.Status,
-            group.Members.Count(m => m.Status == MemberStatus.Active));
+            group.Members.Count(m => m.Status == MemberStatus.Active),
+            group.Members.Count(m => m.Status == MemberStatus.Pending));
     }
 
     public async Task<GroupInviteInfoDto> GetInviteInfoAsync(string inviteCode, Guid? userId)
@@ -99,6 +104,7 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             group.InviteCode,
             group.Name,
             group.Description,
+            group.PixKey,
             group.Creator.Name,
             group.Members.Count(m => m.Status == MemberStatus.Active),
             membership?.Status == MemberStatus.Active,
@@ -120,10 +126,11 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         {
             if (existing.Status == MemberStatus.Active)
                 throw new InvalidOperationException("Você já é membro deste grupo.");
+            if (existing.Status == MemberStatus.Pending)
+                throw new InvalidOperationException("Sua solicitação já está aguardando aprovação do administrador.");
 
-            // Reativa se havia rejeitado antes
-            existing.Status = MemberStatus.Active;
-            existing.JoinedAt = DateTime.UtcNow;
+            existing.Status = MemberStatus.Pending;
+            existing.JoinedAt = null;
         }
         else
         {
@@ -132,16 +139,21 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
                 GroupId = group.Id,
                 UserId = userId,
                 Role = MemberRole.Member,
-                Status = MemberStatus.Active,
-                InvitedAt = DateTime.UtcNow,
-                JoinedAt = DateTime.UtcNow
+                Status = MemberStatus.Pending,
+                InvitedAt = DateTime.UtcNow
             });
         }
 
         await context.SaveChangesAsync();
 
-        var activeCount = group.Members.Count(m => m.Status == MemberStatus.Active) + (existing is null ? 1 : 0);
-        return ToDto(group, group.Creator, MemberRole.Member, MemberStatus.Active, activeCount);
+        var pendingCount = group.Members.Count(m => m.Status == MemberStatus.Pending) + (existing is null ? 1 : 0);
+        await pushService.SendToUserAsync(
+            group.CreatorId,
+            "Bolão Copa 2026 ⚽",
+            $"{pendingCount} pessoa(s) aguardando aprovação no grupo \"{group.Name}\".");
+
+        return ToDto(group, group.Creator, MemberRole.Member, MemberStatus.Pending,
+            group.Members.Count(m => m.Status == MemberStatus.Active), pendingCount);
     }
 
     public async Task RejectInviteAsync(string inviteCode, Guid userId)
@@ -172,6 +184,44 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         }
 
         await context.SaveChangesAsync();
+    }
+
+    public async Task<List<BolaoGroupMemberDto>> GetPendingMembersAsync(Guid groupId, Guid adminId)
+    {
+        await EnsureAdminAsync(groupId, adminId);
+
+        return await context.BolaoGroupMembers
+            .Include(m => m.User)
+            .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Pending)
+            .OrderBy(m => m.InvitedAt)
+            .Select(m => new BolaoGroupMemberDto(
+                m.UserId, m.User.Name, m.User.PhotoUrl,
+                m.Role, m.Status, m.InvitedAt, m.JoinedAt))
+            .ToListAsync();
+    }
+
+    public async Task<BolaoGroupMemberDto> ApproveMemberAsync(Guid groupId, Guid adminId, Guid targetUserId)
+    {
+        await EnsureAdminAsync(groupId, adminId);
+
+        var member = await context.BolaoGroupMembers
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == targetUserId
+                                      && m.Status == MemberStatus.Pending)
+            ?? throw new KeyNotFoundException("Solicitação pendente não encontrada.");
+
+        member.Status = MemberStatus.Active;
+        member.JoinedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        await pushService.SendToUserAsync(
+            targetUserId,
+            "Bolão Copa 2026 ⚽",
+            "Sua entrada foi aprovada! Agora é só fazer seus palpites e torcer. Bora ganhar! 🏆");
+
+        return new BolaoGroupMemberDto(
+            member.UserId, member.User.Name, member.User.PhotoUrl,
+            member.Role, member.Status, member.InvitedAt, member.JoinedAt);
     }
 
     public async Task<List<BolaoGroupMemberDto>> GetMembersAsync(Guid groupId, Guid userId)
@@ -297,15 +347,15 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         return $"https://wa.me/?text={text}";
     }
 
-    private BolaoGroupDto ToDto(BolaoGroup g, User creator, MemberRole role, MemberStatus status, int memberCount)
+    private BolaoGroupDto ToDto(BolaoGroup g, User creator, MemberRole role, MemberStatus status, int memberCount, int pendingCount)
     {
         var link = BuildInviteLink(g.InviteCode);
         return new BolaoGroupDto(
-            g.Id, g.Name, g.Description,
+            g.Id, g.Name, g.Description, g.PixKey,
             g.CreatorId, creator.Name,
             g.InviteCode, link,
             BuildWhatsAppUrl(g.Name, link),
-            memberCount, role, status, g.CreatedAt);
+            memberCount, pendingCount, role, status, g.CreatedAt);
     }
 
     private static string GenerateInviteCode()
