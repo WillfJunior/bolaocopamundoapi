@@ -96,6 +96,7 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
 
         return new GroupInviteInfoDto(
             group.Id,
+            group.InviteCode,
             group.Name,
             group.Description,
             group.Creator.Name,
