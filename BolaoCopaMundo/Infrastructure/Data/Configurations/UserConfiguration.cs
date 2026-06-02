@@ -14,7 +14,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PhoneNumber).IsRequired().HasMaxLength(20);
         builder.HasIndex(u => u.PhoneNumber).IsUnique();
         builder.Property(u => u.PasswordHash).IsRequired();
-        builder.Property(u => u.PhotoUrl).HasMaxLength(500);
+        builder.Property(u => u.PhotoUrl).HasColumnType("nvarchar(max)");
         builder.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
         builder.Property(u => u.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
 

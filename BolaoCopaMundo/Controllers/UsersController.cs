@@ -26,7 +26,7 @@ public class UsersController(UserService userService) : ControllerBase
     }
 
     [HttpPost("me/photo")]
-    [RequestSizeLimit(5_242_880)]
+    [RequestSizeLimit(1_048_576)]
     public async Task<IActionResult> UploadPhoto(IFormFile file)
     {
         var userId = GetUserId();

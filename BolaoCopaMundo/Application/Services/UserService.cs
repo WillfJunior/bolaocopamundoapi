@@ -4,10 +4,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BolaoCopaMundo.Application.Services;
 
-public class UserService(AppDbContext context, IWebHostEnvironment env, ILogger<UserService> logger)
+public class UserService(AppDbContext context, ILogger<UserService> logger)
 {
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-    private const long MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+    private static readonly Dictionary<string, string> MimeTypes = new()
+    {
+        [".jpg"]  = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"]  = "image/png",
+        [".webp"] = "image/webp"
+    };
+    private const long MaxFileSizeBytes = 1 * 1024 * 1024; // 1 MB
 
     public async Task<UserDto> GetProfileAsync(Guid userId)
     {
@@ -47,7 +54,7 @@ public class UserService(AppDbContext context, IWebHostEnvironment env, ILogger<
             throw new InvalidOperationException("Arquivo vazio.");
 
         if (file.Length > MaxFileSizeBytes)
-            throw new InvalidOperationException("Arquivo excede o limite de 5 MB.");
+            throw new InvalidOperationException("Arquivo excede o limite de 1 MB. Comprima a imagem antes de enviar.");
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!AllowedImageExtensions.Contains(ext))
@@ -56,23 +63,12 @@ public class UserService(AppDbContext context, IWebHostEnvironment env, ILogger<
         var user = await context.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("Usuário não encontrado.");
 
-        var photosPath = Path.Combine(env.WebRootPath, "photos");
-        Directory.CreateDirectory(photosPath);
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var mime = MimeTypes[ext];
 
-        // Remove foto anterior se existir
-        if (!string.IsNullOrWhiteSpace(user.PhotoUrl))
-        {
-            var oldFile = Path.Combine(env.WebRootPath, user.PhotoUrl.TrimStart('/'));
-            if (File.Exists(oldFile)) File.Delete(oldFile);
-        }
-
-        var fileName = $"{userId}{ext}";
-        var filePath = Path.Combine(photosPath, fileName);
-
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream);
-
-        user.PhotoUrl = $"/photos/{fileName}";
+        user.PhotoUrl = $"data:{mime};base64,{base64}";
         user.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
 
