@@ -202,10 +202,10 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             .Select(u => new
             {
                 u.Id, u.Name, u.PhotoUrl,
-                TotalPoints    = u.Predictions.Where(p => p.IsProcessed).Sum(p => p.Points),
-                ExactScores    = u.Predictions.Count(p => p.IsProcessed && p.Points == 3),
-                CorrectOutcomes = u.Predictions.Count(p => p.IsProcessed && p.Points == 1),
-                TotalPredictions = u.Predictions.Count()
+                TotalPoints      = u.Predictions.Where(p => p.IsProcessed && p.GroupId == groupId).Sum(p => p.Points),
+                ExactScores      = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 3),
+                CorrectOutcomes  = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 1),
+                TotalPredictions = u.Predictions.Count(p => p.GroupId == groupId)
             })
             .OrderByDescending(u => u.TotalPoints)
             .ThenByDescending(u => u.ExactScores)

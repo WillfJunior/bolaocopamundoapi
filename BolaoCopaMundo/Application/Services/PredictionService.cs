@@ -8,25 +8,31 @@ namespace BolaoCopaMundo.Application.Services;
 
 public class PredictionService(AppDbContext context)
 {
-    public async Task<List<PredictionDto>> GetUserPredictionsAsync(Guid userId)
+    public async Task<List<PredictionDto>> GetUserPredictionsAsync(Guid userId, Guid groupId)
     {
         return await context.Predictions
-            .Where(p => p.UserId == userId)
+            .Where(p => p.UserId == userId && p.GroupId == groupId)
             .OrderByDescending(p => p.UpdatedAt)
             .Select(p => ToDto(p))
             .ToListAsync();
     }
 
-    public async Task<PredictionDto?> GetUserPredictionForMatchAsync(Guid userId, int matchId)
+    public async Task<PredictionDto?> GetUserPredictionForMatchAsync(Guid userId, int matchId, Guid groupId)
     {
         var prediction = await context.Predictions
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.MatchId == matchId);
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.MatchId == matchId && p.GroupId == groupId);
 
         return prediction is null ? null : ToDto(prediction);
     }
 
     public async Task<PredictionDto> SavePredictionAsync(Guid userId, SavePredictionRequest request)
     {
+        var isMember = await context.BolaoGroupMembers.AnyAsync(m =>
+            m.GroupId == request.GroupId && m.UserId == userId && m.Status == MemberStatus.Active);
+
+        if (!isMember)
+            throw new InvalidOperationException("Você não é membro ativo deste grupo.");
+
         var match = await context.Matches.FindAsync(request.MatchId)
             ?? throw new KeyNotFoundException("Jogo não encontrado.");
 
@@ -40,7 +46,7 @@ public class PredictionService(AppDbContext context)
             throw new InvalidOperationException("Os times deste jogo ainda não foram definidos.");
 
         var existing = await context.Predictions
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.MatchId == request.MatchId);
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.MatchId == request.MatchId && p.GroupId == request.GroupId);
 
         if (existing is not null)
         {
@@ -54,6 +60,7 @@ public class PredictionService(AppDbContext context)
         var prediction = new Prediction
         {
             UserId = userId,
+            GroupId = request.GroupId,
             MatchId = request.MatchId,
             HomeScore = request.HomeScore,
             AwayScore = request.AwayScore,
@@ -89,5 +96,5 @@ public class PredictionService(AppDbContext context)
     }
 
     private static PredictionDto ToDto(Prediction p) =>
-        new(p.Id, p.MatchId, p.HomeScore, p.AwayScore, p.Points, p.IsProcessed, p.CreatedAt, p.UpdatedAt);
+        new(p.Id, p.GroupId, p.MatchId, p.HomeScore, p.AwayScore, p.Points, p.IsProcessed, p.CreatedAt, p.UpdatedAt);
 }

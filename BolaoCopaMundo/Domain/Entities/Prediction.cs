@@ -5,6 +5,7 @@ public class Prediction
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
     public int MatchId { get; set; }
+    public Guid GroupId { get; set; }
     public int HomeScore { get; set; }
     public int AwayScore { get; set; }
     public int Points { get; set; }
@@ -14,4 +15,5 @@ public class Prediction
 
     public User User { get; set; } = null!;
     public Match Match { get; set; } = null!;
+    public BolaoGroup Group { get; set; } = null!;
 }

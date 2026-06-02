@@ -12,17 +12,15 @@ namespace BolaoCopaMundo.Controllers;
 public class PredictionsController(PredictionService predictionService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<PredictionDto>>> GetMyPredictions()
+    public async Task<ActionResult<List<PredictionDto>>> GetMyPredictions([FromQuery] Guid groupId)
     {
-        var userId = GetUserId();
-        return Ok(await predictionService.GetUserPredictionsAsync(userId));
+        return Ok(await predictionService.GetUserPredictionsAsync(GetUserId(), groupId));
     }
 
     [HttpGet("match/{matchId:int}")]
-    public async Task<ActionResult<PredictionDto?>> GetForMatch(int matchId)
+    public async Task<ActionResult<PredictionDto?>> GetForMatch(int matchId, [FromQuery] Guid groupId)
     {
-        var userId = GetUserId();
-        return Ok(await predictionService.GetUserPredictionForMatchAsync(userId, matchId));
+        return Ok(await predictionService.GetUserPredictionForMatchAsync(GetUserId(), matchId, groupId));
     }
 
     [HttpPost]
