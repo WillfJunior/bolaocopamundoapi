@@ -1,0 +1,11 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+.idea/
+
+# Credenciais locais — nunca commitar
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
