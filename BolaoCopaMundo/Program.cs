@@ -175,17 +175,17 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 app.MapControllers();
 
 // ─── Recurring Jobs ───────────────────────────────────────────────────────────
-// Atualiza resultados via football-data.org a cada 5 minutos
+// Atualiza resultados via football-data.org a cada 1 minuto (para atualizar ranking mais rápido)
 RecurringJob.AddOrUpdate<UpdateMatchResultsJob>(
     "sync-match-results",
     job => job.ExecuteAsync(),
-    "*/5 * * * *");
+    "*/1 * * * *");
 
-// Envia lembretes 1h antes dos jogos (verifica a cada 5 min)
+// Envia lembretes 1h antes dos jogos (verifica a cada 2 min)
 RecurringJob.AddOrUpdate<SendMatchRemindersJob>(
     "send-match-reminders",
     job => job.ExecuteAsync(),
-    "*/5 * * * *");
+    "*/2 * * * *");
 
 app.Run();
 
