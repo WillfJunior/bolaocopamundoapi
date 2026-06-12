@@ -29,4 +29,8 @@ public class RankingController(RankingService rankingService, BolaoGroupService 
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return Ok(await rankingService.GetUserPositionAsync(userId));
     }
+
+    [HttpGet("by-group/{groupId:guid}")]
+    public async Task<ActionResult<List<RankingEntryDto>>> GetGroupRanking(Guid groupId)
+        => Ok(await rankingService.GetGroupRankingAsync(groupId));
 }
