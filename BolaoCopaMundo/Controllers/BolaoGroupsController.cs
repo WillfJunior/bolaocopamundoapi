@@ -63,6 +63,10 @@ public class BolaoGroupsController(BolaoGroupService service) : ControllerBase
     public async Task<ActionResult<List<RankingEntryDto>>> GetRanking(Guid id)
         => Ok(await service.GetGroupRankingAsync(id, GetUserId()));
 
+    [HttpGet("{id:guid}/ranking/detailed")]
+    public async Task<ActionResult<GroupRankingResponseDto>> GetRankingDetailed(Guid id)
+        => Ok(await service.GetGroupRankingDetailedAsync(id, GetUserId()));
+
     [HttpDelete("{id:guid}/members/{userId:guid}")]
     public async Task<IActionResult> RemoveMember(Guid id, Guid userId)
     {

@@ -283,6 +283,75 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         cache.Remove(cacheKey);
     }
 
+    public async Task<GroupRankingResponseDto> GetGroupRankingDetailedAsync(Guid groupId, Guid userId)
+    {
+        await EnsureMemberAsync(groupId, userId);
+
+        var group = await context.BolaoGroups
+            .Include(g => g.Creator)
+            .FirstOrDefaultAsync(g => g.Id == groupId)
+            ?? throw new KeyNotFoundException("Grupo não encontrado.");
+
+        var memberIds = await context.BolaoGroupMembers
+            .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Active)
+            .Select(m => m.UserId)
+            .ToListAsync();
+
+        var totalMatches = await context.Matches.CountAsync();
+        var processedMatches = await context.Matches
+            .Where(m => m.Status == MatchStatus.Finished)
+            .CountAsync();
+
+        var raw = await context.Users
+            .Where(u => memberIds.Contains(u.Id) && u.IsActive)
+            .Select(u => new
+            {
+                u.Id, u.Name, u.PhotoUrl,
+                TotalPoints = u.Predictions.Where(p => p.IsProcessed && p.GroupId == groupId).Sum(p => p.Points),
+                ExactScores = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 3),
+                CorrectOutcomes = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 1),
+                TotalPredictions = u.Predictions.Count(p => p.GroupId == groupId)
+            })
+            .OrderByDescending(u => u.TotalPoints)
+            .ThenByDescending(u => u.ExactScores)
+            .ThenByDescending(u => u.CorrectOutcomes)
+            .ThenBy(u => u.Name)
+            .ToListAsync();
+
+        int leaderPoints = raw.FirstOrDefault()?.TotalPoints ?? 0;
+
+        var rankings = raw.Select((entry, index) => new GroupRankingEntryDto(
+            Position: index + 1,
+            UserId: entry.Id,
+            UserName: entry.Name,
+            UserPhotoUrl: entry.PhotoUrl,
+            TotalPoints: entry.TotalPoints,
+            ExactScores: entry.ExactScores,
+            CorrectOutcomes: entry.CorrectOutcomes,
+            TotalPredictions: entry.TotalPredictions,
+            PointsPerPrediction: entry.TotalPredictions > 0
+                ? Math.Round((double)entry.TotalPoints / entry.TotalPredictions, 2)
+                : 0,
+            AccuracyRate: entry.TotalPredictions > 0
+                ? Math.Round(((double)(entry.ExactScores * 3 + entry.CorrectOutcomes * 1) / (entry.TotalPredictions * 3)) * 100, 1)
+                : 0,
+            IsLeader: index == 0,
+            PointsDifference: leaderPoints - entry.TotalPoints
+        )).ToList();
+
+        return new GroupRankingResponseDto(
+            GroupId: group.Id,
+            GroupName: group.Name,
+            GroupDescription: group.Description,
+            TotalMembers: memberIds.Count,
+            TotalMatches: totalMatches,
+            ProcessedMatches: processedMatches,
+            CreatorName: group.Creator.Name,
+            Rankings: rankings,
+            GeneratedAt: DateTime.UtcNow
+        );
+    }
+
     public async Task RemoveMemberAsync(Guid groupId, Guid adminId, Guid targetUserId)
     {
         await EnsureAdminAsync(groupId, adminId);
