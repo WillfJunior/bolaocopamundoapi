@@ -5,10 +5,11 @@ using BolaoCopaMundo.Domain.Enums;
 using BolaoCopaMundo.Infrastructure.Data;
 using BolaoCopaMundo.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace BolaoCopaMundo.Application.Services;
 
-public class BolaoGroupService(AppDbContext context, IConfiguration configuration, PushNotificationService pushService)
+public class BolaoGroupService(AppDbContext context, IConfiguration configuration, PushNotificationService pushService, IMemoryCache cache)
 {
     private string AppBaseUrl =>
         configuration["AppBaseUrl"] ?? "http://localhost:5196";
@@ -242,6 +243,10 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
     {
         await EnsureMemberAsync(groupId, userId);
 
+        string cacheKey = $"ranking:group:{groupId}";
+        if (cache.TryGetValue(cacheKey, out List<RankingEntryDto>? cachedRanking))
+            return cachedRanking!;
+
         var memberIds = await context.BolaoGroupMembers
             .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Active)
             .Select(m => m.UserId)
@@ -263,10 +268,19 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             .ThenBy(u => u.Name)
             .ToListAsync();
 
-        return raw.Select((e, i) => new RankingEntryDto(
+        var result = raw.Select((e, i) => new RankingEntryDto(
             i + 1, e.Id, e.Name, e.PhotoUrl,
             e.TotalPoints, e.ExactScores, e.CorrectOutcomes, e.TotalPredictions
         )).ToList();
+
+        cache.Set(cacheKey, result, TimeSpan.FromSeconds(60));
+        return result;
+    }
+
+    public void InvalidateGroupCache(Guid groupId)
+    {
+        string cacheKey = $"ranking:group:{groupId}";
+        cache.Remove(cacheKey);
     }
 
     public async Task RemoveMemberAsync(Guid groupId, Guid adminId, Guid targetUserId)

@@ -28,30 +28,28 @@ public class UpdateMatchResultsJob(
             return;
         }
 
-        // Salva quais partidas estavam em andamento antes
-        var inProgressBefore = await context.Matches
-            .Where(m => m.Status == MatchStatus.InProgress)
+        await footballApi.SyncMatchResultsAsync();
+
+        // Processa todos os jogos Finished que ainda têm predições não processadas
+        // (idempotente — ProcessMatchPredictionsAsync filtra !IsProcessed)
+        var matchesWithUnprocessed = await context.Matches
+            .Where(m => m.Status == MatchStatus.Finished
+                     && m.Predictions.Any(p => !p.IsProcessed))
             .Select(m => m.Id)
             .ToListAsync();
 
-        await footballApi.SyncMatchResultsAsync();
-
-        // Processa pontuação dos jogos que acabaram
-        var finishedMatches = await context.Matches
-            .Where(m => m.Status == MatchStatus.Finished && inProgressBefore.Contains(m.Id))
-            .ToListAsync();
-
-        foreach (var match in finishedMatches)
+        foreach (var matchId in matchesWithUnprocessed)
         {
-            await predictionService.ProcessMatchPredictionsAsync(match.Id);
-            logger.LogInformation("Jogo {MatchId} processado: {Home}-{Away}", match.Id, match.HomeScore, match.AwayScore);
+            await predictionService.ProcessMatchPredictionsAsync(matchId);
+            var match = await context.Matches.FindAsync(matchId);
+            logger.LogInformation("Jogo {MatchId} processado: {Home}-{Away}", matchId, match?.HomeScore, match?.AwayScore);
         }
 
-        if (finishedMatches.Count > 0)
+        if (matchesWithUnprocessed.Count > 0)
         {
             await pushService.SendToAllAsync(
                 "Resultado disponível!",
-                $"{finishedMatches.Count} jogo(s) encerrado(s). Veja sua pontuação.",
+                $"{matchesWithUnprocessed.Count} jogo(s) encerrado(s). Veja sua pontuação.",
                 new { type = "match_result" });
         }
     }

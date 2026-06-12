@@ -2,6 +2,7 @@ using System.Text;
 using BolaoCopaMundo.Application.Services;
 using BolaoCopaMundo.Infrastructure.Data;
 using BolaoCopaMundo.Infrastructure.Data.Seeding;
+using BolaoCopaMundo.Infrastructure.Hubs;
 using BolaoCopaMundo.Infrastructure.Jobs;
 using BolaoCopaMundo.Infrastructure.Services;
 using BolaoCopaMundo.Middlewares;
@@ -71,6 +72,12 @@ builder.Services.AddHttpClient<FootballApiService>(client =>
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+// ─── Cache ────────────────────────────────────────────────────────────────────
+builder.Services.AddMemoryCache();
+
+// ─── SignalR ───────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 // ─── Serviços de Infraestrutura ───────────────────────────────────────────────
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<PushNotificationService>();
@@ -133,7 +140,8 @@ builder.Services.AddCors(options =>
                 builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
                 ?? ["http://localhost:3000", "http://localhost:5173"])
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 var app = builder.Build();
@@ -173,6 +181,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
+app.MapHub<RankingHub>("/hubs/ranking");
 
 // ─── Recurring Jobs ───────────────────────────────────────────────────────────
 // Atualiza resultados via football-data.org a cada 1 minuto (para atualizar ranking mais rápido)

@@ -11,6 +11,8 @@ public class PredictionConfiguration : IEntityTypeConfiguration<Prediction>
         builder.HasKey(p => p.Id);
         builder.Property(p => p.Id).HasDefaultValueSql("NEWID()");
         builder.HasIndex(p => new { p.UserId, p.MatchId, p.GroupId }).IsUnique();
+        builder.HasIndex(p => new { p.GroupId, p.IsProcessed });
+        builder.HasIndex(p => new { p.MatchId, p.IsProcessed });
         builder.Property(p => p.HomeScore).IsRequired();
         builder.Property(p => p.AwayScore).IsRequired();
         builder.Property(p => p.Points).HasDefaultValue(0);

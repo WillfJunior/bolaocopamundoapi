@@ -2,11 +2,14 @@ using BolaoCopaMundo.Application.DTOs.Prediction;
 using BolaoCopaMundo.Domain.Entities;
 using BolaoCopaMundo.Domain.Enums;
 using BolaoCopaMundo.Infrastructure.Data;
+using BolaoCopaMundo.Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace BolaoCopaMundo.Application.Services;
 
-public class PredictionService(AppDbContext context)
+public class PredictionService(AppDbContext context, IMemoryCache cache, IHubContext<RankingHub> hubContext)
 {
     public async Task<List<PredictionDto>> GetUserPredictionsAsync(Guid userId, Guid groupId)
     {
@@ -83,6 +86,11 @@ public class PredictionService(AppDbContext context)
             .Where(p => p.MatchId == matchId && !p.IsProcessed)
             .ToListAsync();
 
+        if (predictions.Count == 0)
+            return;
+
+        var affectedGroupIds = new HashSet<Guid>();
+
         foreach (var p in predictions)
         {
             p.Points = ScoringService.CalculatePoints(
@@ -90,9 +98,16 @@ public class PredictionService(AppDbContext context)
                 match.HomeScore.Value, match.AwayScore.Value);
             p.IsProcessed = true;
             p.UpdatedAt = DateTime.UtcNow;
+            affectedGroupIds.Add(p.GroupId);
         }
 
         await context.SaveChangesAsync();
+
+        cache.Remove("ranking:global");
+        foreach (var groupId in affectedGroupIds)
+            cache.Remove($"ranking:group:{groupId}");
+
+        await hubContext.Clients.All.SendAsync("rankings-updated", matchId);
     }
 
     private static PredictionDto ToDto(Prediction p) =>
