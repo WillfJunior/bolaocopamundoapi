@@ -31,9 +31,10 @@ public class UpdateMatchResultsJob(
         await footballApi.SyncMatchResultsAsync();
 
         // Processa todos os jogos Finished que ainda têm predições não processadas
-        // (idempotente — ProcessMatchPredictionsAsync filtra !IsProcessed)
+        // e cuja notificação push ainda não foi enviada
         var matchesWithUnprocessed = await context.Matches
             .Where(m => m.Status == MatchStatus.Finished
+                     && !m.PushNotificationSent
                      && m.Predictions.Any(p => !p.IsProcessed))
             .Select(m => m.Id)
             .ToListAsync();
@@ -51,6 +52,16 @@ public class UpdateMatchResultsJob(
                 "Resultado disponível!",
                 $"{matchesWithUnprocessed.Count} jogo(s) encerrado(s). Veja sua pontuação.",
                 new { type = "match_result" });
+
+            // Marca que o push foi enviado para esses jogos
+            var matchesToMark = await context.Matches
+                .Where(m => matchesWithUnprocessed.Contains(m.Id))
+                .ToListAsync();
+
+            foreach (var m in matchesToMark)
+                m.PushNotificationSent = true;
+
+            await context.SaveChangesAsync();
         }
     }
 }

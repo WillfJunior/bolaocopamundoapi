@@ -17,6 +17,7 @@ public class Match
     public string? Venue { get; set; }
     public string? MatchLabel { get; set; }
     public int Matchday { get; set; }
+    public bool PushNotificationSent { get; set; } = false;
 
     public Team? HomeTeam { get; set; }
     public Team? AwayTeam { get; set; }

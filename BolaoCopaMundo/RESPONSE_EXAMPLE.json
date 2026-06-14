@@ -1,0 +1,301 @@
+{
+  "endpoint": "GET /api/ranking/by-group",
+  "description": "Retorna ranking separado por cada grupo do usuário autenticado",
+  "authentication": "Authorization: Bearer {token}",
+  "response": [
+    {
+      "groupId": "a1b2c3d4-e5f6-4a5b-8c9d-e0f1a2b3c4d5",
+      "groupName": "Bolão dos Amigos",
+      "groupDescription": "Bolão do grupo de amigos para Copa 2026",
+      "totalMembers": 8,
+      "rankings": [
+        {
+          "position": 1,
+          "userId": "f1a2b3c4-d5e6-4f5a-8b9c-d0e1f2a3b4c5",
+          "userName": "Maria Santos",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/maria-santos.jpg",
+          "totalPoints": 42,
+          "exactScores": 8,
+          "correctOutcomes": 12,
+          "totalPredictions": 30
+        },
+        {
+          "position": 2,
+          "userId": "e2a3b4c5-d6e7-4f6a-8c9d-e1f2a3b4c5d6",
+          "userName": "Pedro Costa",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/pedro-costa.jpg",
+          "totalPoints": 38,
+          "exactScores": 7,
+          "correctOutcomes": 10,
+          "totalPredictions": 30
+        },
+        {
+          "position": 3,
+          "userId": "d3a4b5c6-d7e8-4f7a-8d9e-f2a3b4c5d6e7",
+          "userName": "Ana Silva",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/ana-silva.jpg",
+          "totalPoints": 35,
+          "exactScores": 6,
+          "correctOutcomes": 9,
+          "totalPredictions": 28
+        },
+        {
+          "position": 4,
+          "userId": "c4a5b6c7-d8e9-4f8a-8e9f-a3b4c5d6e7f8",
+          "userName": "Luis Oliveira",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/luis-oliveira.jpg",
+          "totalPoints": 32,
+          "exactScores": 5,
+          "correctOutcomes": 8,
+          "totalPredictions": 30
+        },
+        {
+          "position": 5,
+          "userId": "b5a6b7c8-d9ea-4f9a-8f0a-b4c5d6e7f8a9",
+          "userName": "Carlos Mendes",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/carlos-mendes.jpg",
+          "totalPoints": 28,
+          "exactScores": 4,
+          "correctOutcomes": 7,
+          "totalPredictions": 27
+        },
+        {
+          "position": 6,
+          "userId": "a6a7b8c9-daea-4faa-80ab-c5d6e7f8a9ba",
+          "userName": "Fernanda Rocha",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/fernanda-rocha.jpg",
+          "totalPoints": 25,
+          "exactScores": 4,
+          "correctOutcomes": 6,
+          "totalPredictions": 25
+        },
+        {
+          "position": 7,
+          "userId": "97a8b9ca-dbeb-4fab-81ac-d6e7f8a9babc",
+          "userName": "Jorge Alves",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/jorge-alves.jpg",
+          "totalPoints": 22,
+          "exactScores": 3,
+          "correctOutcomes": 5,
+          "totalPredictions": 28
+        },
+        {
+          "position": 8,
+          "userId": "88a9badb-dcec-4fbc-82ad-e7f8a9bacbcd",
+          "userName": "Beatriz Lima",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/beatriz-lima.jpg",
+          "totalPoints": 18,
+          "exactScores": 2,
+          "correctOutcomes": 4,
+          "totalPredictions": 30
+        }
+      ]
+    },
+    {
+      "groupId": "b2c3d4e5-f6a7-4b6c-8d9e-f1a2b3c4d5e6",
+      "groupName": "Bolão da Família",
+      "groupDescription": "Bolão familiar para Copa 2026",
+      "totalMembers": 5,
+      "rankings": [
+        {
+          "position": 1,
+          "userId": "d3a4b5c6-d7e8-4f7a-8d9e-f2a3b4c5d6e7",
+          "userName": "Ana Silva",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/ana-silva.jpg",
+          "totalPoints": 45,
+          "exactScores": 9,
+          "correctOutcomes": 11,
+          "totalPredictions": 32
+        },
+        {
+          "position": 2,
+          "userId": "c7d8e9fa-b1c2-4d3e-9f0a-a2b3c4d5e6f7",
+          "userName": "João Silva",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/joao-silva.jpg",
+          "totalPoints": 40,
+          "exactScores": 8,
+          "correctOutcomes": 10,
+          "totalPredictions": 30
+        },
+        {
+          "position": 3,
+          "userId": "b8d9eafb-c2d3-4e4f-a01b-b3c4d5e6f7a8",
+          "userName": "Mariana Costa",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/mariana-costa.jpg",
+          "totalPoints": 33,
+          "exactScores": 6,
+          "correctOutcomes": 8,
+          "totalPredictions": 28
+        },
+        {
+          "position": 4,
+          "userId": "a9daebfc-d3e4-4f5f-b12c-c4d5e6f7a8b9",
+          "userName": "Roberto Silva",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/roberto-silva.jpg",
+          "totalPoints": 28,
+          "exactScores": 5,
+          "correctOutcomes": 7,
+          "totalPredictions": 29
+        },
+        {
+          "position": 5,
+          "userId": "8ad9ebfc-d3e4-4f5f-b12c-c4d5e6f7a8b9",
+          "userName": "Camila Santos",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/camila-santos.jpg",
+          "totalPoints": 20,
+          "exactScores": 3,
+          "correctOutcomes": 4,
+          "totalPredictions": 24
+        }
+      ]
+    },
+    {
+      "groupId": "c3d4e5f6-a7b8-4c7d-8e9f-a2b3c4d5e6f7",
+      "groupName": "Copa do Trabalho",
+      "groupDescription": "Bolão entre colegas de trabalho",
+      "totalMembers": 12,
+      "rankings": [
+        {
+          "position": 1,
+          "userId": "f1a2b3c4-d5e6-4f5a-8b9c-d0e1f2a3b4c5",
+          "userName": "Maria Santos",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/maria-santos.jpg",
+          "totalPoints": 48,
+          "exactScores": 10,
+          "correctOutcomes": 13,
+          "totalPredictions": 31
+        },
+        {
+          "position": 2,
+          "userId": "c7d8e9fa-b1c2-4d3e-9f0a-a2b3c4d5e6f7",
+          "userName": "João Silva",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/joao-silva.jpg",
+          "totalPoints": 44,
+          "exactScores": 9,
+          "correctOutcomes": 11,
+          "totalPredictions": 32
+        },
+        {
+          "position": 3,
+          "userId": "e2a3b4c5-d6e7-4f6a-8c9d-e1f2a3b4c5d6",
+          "userName": "Pedro Costa",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/pedro-costa.jpg",
+          "totalPoints": 39,
+          "exactScores": 7,
+          "correctOutcomes": 10,
+          "totalPredictions": 30
+        },
+        {
+          "position": 4,
+          "userId": "d6e7f8a9-b0c1-4e5f-8f0a-a1b2c3d4e5f6",
+          "userName": "Isabela Gomes",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/isabela-gomes.jpg",
+          "totalPoints": 36,
+          "exactScores": 6,
+          "correctOutcomes": 9,
+          "totalPredictions": 29
+        },
+        {
+          "position": 5,
+          "userId": "c5d6e7f8-a9b0-4d4e-8e9f-9a0b1c2d3e4f",
+          "userName": "Thiago Pereira",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/thiago-pereira.jpg",
+          "totalPoints": 31,
+          "exactScores": 5,
+          "correctOutcomes": 8,
+          "totalPredictions": 28
+        },
+        {
+          "position": 6,
+          "userId": "b4c5d6e7-f8a9-4c3d-8d8e-8b9c0d1e2f30",
+          "userName": "Juliana Costa",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/juliana-costa.jpg",
+          "totalPoints": 27,
+          "exactScores": 4,
+          "correctOutcomes": 7,
+          "totalPredictions": 27
+        },
+        {
+          "position": 7,
+          "userId": "a3b4c5d6-e7f8-4b2c-8c7d-7a8b9c0d1e2f",
+          "userName": "Rafael Martins",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/rafael-martins.jpg",
+          "totalPoints": 24,
+          "exactScores": 4,
+          "correctOutcomes": 5,
+          "totalPredictions": 26
+        },
+        {
+          "position": 8,
+          "userId": "92a3b4c5-d6e7-4a1b-8b6c-6a7b8c9d0e1f",
+          "userName": "Larissa Souza",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/larissa-souza.jpg",
+          "totalPoints": 21,
+          "exactScores": 3,
+          "correctOutcomes": 6,
+          "totalPredictions": 25
+        },
+        {
+          "position": 9,
+          "userId": "81a2b3c4-d5e6-4912-8a5b-5a9bacdef012",
+          "userName": "Gustavo Rocha",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/gustavo-rocha.jpg",
+          "totalPoints": 18,
+          "exactScores": 2,
+          "correctOutcomes": 5,
+          "totalPredictions": 27
+        },
+        {
+          "position": 10,
+          "userId": "70a1b2c3-d4e5-3801-8945-4989abcde011",
+          "userName": "Sophia Ribeiro",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/sophia-ribeiro.jpg",
+          "totalPoints": 15,
+          "exactScores": 2,
+          "correctOutcomes": 3,
+          "totalPredictions": 24
+        },
+        {
+          "position": 11,
+          "userId": "6fa0b1c2-d3e4-2710-8834-3878abcde000",
+          "userName": "Felipe Nogueira",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/felipe-nogueira.jpg",
+          "totalPoints": 12,
+          "exactScores": 1,
+          "correctOutcomes": 3,
+          "totalPredictions": 23
+        },
+        {
+          "position": 12,
+          "userId": "5eb9a0c1-d2e3-161f-8723-2767abcde111",
+          "userName": "Artur Ferreira",
+          "userPhotoUrl": "https://api.seu-servidor.com/photos/artur-ferreira.jpg",
+          "totalPoints": 9,
+          "exactScores": 1,
+          "correctOutcomes": 2,
+          "totalPredictions": 22
+        }
+      ]
+    }
+  ],
+  "fields_description": {
+    "groupId": "UUID do grupo",
+    "groupName": "Nome do grupo",
+    "groupDescription": "Descrição do grupo (opcional)",
+    "totalMembers": "Total de membros ativos no grupo",
+    "rankings": "Array com ranking dos membros",
+    "position": "Posição no ranking (1º, 2º, etc)",
+    "userId": "UUID do usuário",
+    "userName": "Nome do usuário",
+    "userPhotoUrl": "URL da foto de perfil (opcional)",
+    "totalPoints": "Total de pontos ganhos",
+    "exactScores": "Quantidade de acertos de placar exato (3 pontos cada)",
+    "correctOutcomes": "Quantidade de acertos de resultado (1 ponto cada)",
+    "totalPredictions": "Total de palpites feitos"
+  },
+  "http_response": {
+    "statusCode": 200,
+    "contentType": "application/json",
+    "charset": "utf-8"
+  }
+}

@@ -8,5 +8,6 @@ public record RankingEntryDto(
     int TotalPoints,
     int ExactScores,
     int CorrectOutcomes,
-    int TotalPredictions
+    int TotalPredictions,
+    int Errors
 );

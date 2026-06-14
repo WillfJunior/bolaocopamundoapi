@@ -30,7 +30,10 @@ public class RankingController(RankingService rankingService, BolaoGroupService 
         return Ok(await rankingService.GetUserPositionAsync(userId));
     }
 
-    [HttpGet("by-group/{groupId:guid}")]
-    public async Task<ActionResult<List<RankingEntryDto>>> GetGroupRanking(Guid groupId)
-        => Ok(await rankingService.GetGroupRankingAsync(groupId));
+    [HttpGet("by-group")]
+    public async Task<ActionResult<List<UserRankingsByGroupDto>>> GetRankingsByGroup()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return Ok(await rankingService.GetUserRankingsByGroupAsync(userId));
+    }
 }
