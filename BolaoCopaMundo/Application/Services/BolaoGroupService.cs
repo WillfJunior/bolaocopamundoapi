@@ -6,6 +6,7 @@ using BolaoCopaMundo.Infrastructure.Data;
 using BolaoCopaMundo.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.ComponentModel;
 
 namespace BolaoCopaMundo.Application.Services;
 
@@ -260,7 +261,8 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
                 TotalPoints      = u.Predictions.Where(p => p.IsProcessed && p.GroupId == groupId).Sum(p => p.Points),
                 ExactScores      = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 3),
                 CorrectOutcomes  = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 1),
-                TotalPredictions = u.Predictions.Count(p => p.GroupId == groupId)
+                TotalPredictions = u.Predictions.Count(p => p.GroupId == groupId),
+                Errors = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 0)
             })
             .OrderByDescending(u => u.TotalPoints)
             .ThenByDescending(u => u.ExactScores)
@@ -270,7 +272,7 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
 
         var result = raw.Select((e, i) => new RankingEntryDto(
             i + 1, e.Id, e.Name, e.PhotoUrl,
-            e.TotalPoints, e.ExactScores, e.CorrectOutcomes, e.TotalPredictions
+            e.TotalPoints, e.ExactScores, e.CorrectOutcomes, e.TotalPredictions, e.Errors
         )).ToList();
 
         cache.Set(cacheKey, result, TimeSpan.FromSeconds(60));
@@ -283,6 +285,73 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         cache.Remove(cacheKey);
     }
 
+    public async Task<object> GetMemberPredictionsAsync(Guid groupId, Guid memberId, Guid userId)
+    {
+        await EnsureMemberAsync(groupId, userId);
+
+        var member = await context.BolaoGroupMembers
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == memberId)
+            ?? throw new KeyNotFoundException("Membro não encontrado neste grupo.");
+
+        var now = DateTime.UtcNow;
+        var predictionDeadlineOffset = TimeSpan.FromHours(1);
+
+        var nextMatch = await context.Matches
+            .Where(m => m.MatchDate > now)
+            .OrderBy(m => m.MatchDate)
+            .FirstOrDefaultAsync();
+
+        if (nextMatch is null)
+            throw new InvalidOperationException("Nenhum jogo pendente encontrado.");
+
+        var predictionDeadline = nextMatch.MatchDate.Subtract(predictionDeadlineOffset);
+
+        if (now < predictionDeadline)
+            throw new InvalidOperationException($"O prazo para visualizar palpites só começa {predictionDeadlineOffset.TotalHours:F0} hora(s) antes do jogo.");
+
+        var prediction = await context.Predictions
+            .Include(p => p.Match).ThenInclude(m => m.HomeTeam)
+            .Include(p => p.Match).ThenInclude(m => m.AwayTeam)
+            .FirstOrDefaultAsync(p => p.UserId == memberId && p.GroupId == groupId && p.MatchId == nextMatch.Id);
+
+        if (prediction is null)
+            throw new KeyNotFoundException($"Este membro não fez palpite para o próximo jogo (ID: {nextMatch.Id}).");
+
+        var predictionDetail = new
+        {
+            PredictionId = prediction.Id,
+            MatchId = prediction.MatchId,
+            HomeTeam = prediction.Match.HomeTeam != null ? new { prediction.Match.HomeTeam.Id, prediction.Match.HomeTeam.Name, prediction.Match.HomeTeam.FlagUrl } : null,
+            AwayTeam = prediction.Match.AwayTeam != null ? new { prediction.Match.AwayTeam.Id, prediction.Match.AwayTeam.Name, prediction.Match.AwayTeam.FlagUrl } : null,
+            PredictedHomeScore = prediction.HomeScore,
+            PredictedAwayScore = prediction.AwayScore,
+            ActualHomeScore = prediction.Match.HomeScore,
+            ActualAwayScore = prediction.Match.AwayScore,
+            Points = prediction.Points,
+            IsProcessed = prediction.IsProcessed,
+            MatchStatus = prediction.Match.Status,
+            MatchDate = prediction.Match.MatchDate,
+            Venue = prediction.Match.Venue,
+            MatchLabel = prediction.Match.MatchLabel,
+            Matchday = prediction.Match.Matchday,
+            Phase = prediction.Match.Phase
+        };
+
+        return new
+        {
+            MemberId = member.UserId,
+            MemberName = member.User.Name,
+            MemberPhotoUrl = member.User.PhotoUrl,
+            GroupId = groupId,
+            NextMatchId = nextMatch.Id,
+            NextMatchDate = nextMatch.MatchDate,
+            PredictionDeadline = predictionDeadline,
+            CanViewPredictions = true,
+            Prediction = predictionDetail
+        };
+    }
+
     public async Task<GroupRankingResponseDto> GetGroupRankingDetailedAsync(Guid groupId, Guid userId)
     {
         await EnsureMemberAsync(groupId, userId);
@@ -292,39 +361,22 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             .FirstOrDefaultAsync(g => g.Id == groupId)
             ?? throw new KeyNotFoundException("Grupo não encontrado.");
 
-        var memberIds = await context.BolaoGroupMembers
-            .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Active)
-            .Select(m => m.UserId)
-            .ToListAsync();
+        // Usar o ranking já calculado
+        var baseRanking = await GetGroupRankingAsync(groupId, userId);
 
         var totalMatches = await context.Matches.CountAsync();
         var processedMatches = await context.Matches
             .Where(m => m.Status == MatchStatus.Finished)
             .CountAsync();
 
-        var raw = await context.Users
-            .Where(u => memberIds.Contains(u.Id) && u.IsActive)
-            .Select(u => new
-            {
-                u.Id, u.Name, u.PhotoUrl,
-                TotalPoints = u.Predictions.Where(p => p.IsProcessed && p.GroupId == groupId).Sum(p => p.Points),
-                ExactScores = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 3),
-                CorrectOutcomes = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 1),
-                TotalPredictions = u.Predictions.Count(p => p.GroupId == groupId)
-            })
-            .OrderByDescending(u => u.TotalPoints)
-            .ThenByDescending(u => u.ExactScores)
-            .ThenByDescending(u => u.CorrectOutcomes)
-            .ThenBy(u => u.Name)
-            .ToListAsync();
+        // Enriquecer com dados detalhados
+        int leaderPoints = baseRanking.FirstOrDefault()?.TotalPoints ?? 0;
 
-        int leaderPoints = raw.FirstOrDefault()?.TotalPoints ?? 0;
-
-        var rankings = raw.Select((entry, index) => new GroupRankingEntryDto(
-            Position: index + 1,
-            UserId: entry.Id,
-            UserName: entry.Name,
-            UserPhotoUrl: entry.PhotoUrl,
+        var rankingEntries = baseRanking.Select((entry, index) => new GroupRankingEntryDto(
+            Position: entry.Position,
+            UserId: entry.UserId,
+            UserName: entry.UserName,
+            UserPhotoUrl: entry.UserPhotoUrl,
             TotalPoints: entry.TotalPoints,
             ExactScores: entry.ExactScores,
             CorrectOutcomes: entry.CorrectOutcomes,
@@ -333,21 +385,22 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
                 ? Math.Round((double)entry.TotalPoints / entry.TotalPredictions, 2)
                 : 0,
             AccuracyRate: entry.TotalPredictions > 0
-                ? Math.Round(((double)(entry.ExactScores * 3 + entry.CorrectOutcomes * 1) / (entry.TotalPredictions * 3)) * 100, 1)
+                ? Math.Round(((double)(entry.ExactScores * 3 + entry.CorrectOutcomes) / (entry.TotalPredictions * 3)) * 100, 1)
                 : 0,
             IsLeader: index == 0,
             PointsDifference: leaderPoints - entry.TotalPoints
+
         )).ToList();
 
         return new GroupRankingResponseDto(
             GroupId: group.Id,
             GroupName: group.Name,
             GroupDescription: group.Description,
-            TotalMembers: memberIds.Count,
+            TotalMembers: baseRanking.Count,
             TotalMatches: totalMatches,
             ProcessedMatches: processedMatches,
             CreatorName: group.Creator.Name,
-            Rankings: rankings,
+            Rankings: rankingEntries,
             GeneratedAt: DateTime.UtcNow
         );
     }
