@@ -296,27 +296,44 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
 
         var now = DateTime.UtcNow;
         var predictionDeadlineOffset = TimeSpan.FromHours(1);
+        var viewWindowAfterMatch = TimeSpan.FromHours(24);
 
-        var nextMatch = await context.Matches
-            .Where(m => m.MatchDate > now)
-            .OrderBy(m => m.MatchDate)
-            .FirstOrDefaultAsync();
+        var allMatches = await context.Matches
+            .Where(m => m.MatchDate <= now.Add(viewWindowAfterMatch))
+            .OrderByDescending(m => m.MatchDate)
+            .ToListAsync();
 
-        if (nextMatch is null)
-            throw new InvalidOperationException("Nenhum jogo pendente encontrado.");
+        Match? targetMatch = null;
 
-        var predictionDeadline = nextMatch.MatchDate.Subtract(predictionDeadlineOffset);
+        foreach (var match in allMatches)
+        {
+            var predictionDeadline = match.MatchDate.Subtract(predictionDeadlineOffset);
 
-        if (now < predictionDeadline)
-            throw new InvalidOperationException($"O prazo para visualizar palpites só começa {predictionDeadlineOffset.TotalHours:F0} hora(s) antes do jogo.");
+            if (now >= predictionDeadline)
+            {
+                var hasPrediction = await context.Predictions
+                    .AnyAsync(p => p.UserId == memberId && p.GroupId == groupId && p.MatchId == match.Id);
+
+                if (hasPrediction)
+                {
+                    targetMatch = match;
+                    break;
+                }
+            }
+        }
+
+        if (targetMatch is null)
+            throw new InvalidOperationException("Nenhum jogo disponível para visualizar palpites. O prazo não foi encerrado ou o membro não fez palpite.");
 
         var prediction = await context.Predictions
             .Include(p => p.Match).ThenInclude(m => m.HomeTeam)
             .Include(p => p.Match).ThenInclude(m => m.AwayTeam)
-            .FirstOrDefaultAsync(p => p.UserId == memberId && p.GroupId == groupId && p.MatchId == nextMatch.Id);
+            .FirstOrDefaultAsync(p => p.UserId == memberId && p.GroupId == groupId && p.MatchId == targetMatch.Id);
 
         if (prediction is null)
-            throw new KeyNotFoundException($"Este membro não fez palpite para o próximo jogo (ID: {nextMatch.Id}).");
+            throw new KeyNotFoundException($"Palpite não encontrado para o jogo ID: {targetMatch.Id}.");
+
+        var predictionDeadlineForMatch = targetMatch.MatchDate.Subtract(predictionDeadlineOffset);
 
         var predictionDetail = new
         {
@@ -344,9 +361,9 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             MemberName = member.User.Name,
             MemberPhotoUrl = member.User.PhotoUrl,
             GroupId = groupId,
-            NextMatchId = nextMatch.Id,
-            NextMatchDate = nextMatch.MatchDate,
-            PredictionDeadline = predictionDeadline,
+            MatchId = targetMatch.Id,
+            MatchDate = targetMatch.MatchDate,
+            PredictionDeadline = predictionDeadlineForMatch,
             CanViewPredictions = true,
             Prediction = predictionDetail
         };
