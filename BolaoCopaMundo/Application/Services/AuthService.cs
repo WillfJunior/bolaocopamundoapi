@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BolaoCopaMundo.Application.Services;
 
-public class AuthService(AppDbContext context, TokenService tokenService)
+public class AuthService(AppDbContext context, TokenService tokenService, PushNotificationService pushService)
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
@@ -53,6 +53,28 @@ public class AuthService(AppDbContext context, TokenService tokenService)
         await context.SaveChangesAsync();
     }
 
+    public async Task<ForgotPasswordResponse> ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var user = await context.Users
+            .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber && u.IsActive)
+            ?? throw new KeyNotFoundException("Usuário com este telefone não encontrado.");
+
+        var tempPassword = GenerateTemporaryPassword();
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        await pushService.SendToUserAsync(
+            user.Id,
+            "Bolão Copa 2026 ⚽ - Senha Recuperada",
+            $"Sua nova senha temporária é: {tempPassword}\n\nFaça login e altere para uma senha de sua preferência.");
+
+        return new ForgotPasswordResponse(
+            "Senha temporária enviada para você via notificação push.",
+            user.Name);
+    }
+
     private AuthResponse BuildAuthResponse(User user)
     {
         var (token, expiresAt) = tokenService.GenerateToken(user);
@@ -60,5 +82,14 @@ public class AuthService(AppDbContext context, TokenService tokenService)
             token,
             expiresAt,
             new UserInfo(user.Id, user.Name, user.PhoneNumber, user.PhotoUrl, user.IsAdmin));
+    }
+
+    private static string GenerateTemporaryPassword(int length = 12)
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
+        var random = new Random();
+        return new string(Enumerable.Range(0, length)
+            .Select(_ => chars[random.Next(chars.Length)])
+            .ToArray());
     }
 }

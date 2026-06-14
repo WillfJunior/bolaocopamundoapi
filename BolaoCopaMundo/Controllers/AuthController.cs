@@ -32,4 +32,12 @@ public class AuthController(AuthService authService) : ControllerBase
         await authService.ChangePasswordAsync(userId, request);
         return NoContent();
     }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var result = await authService.ForgotPasswordAsync(request);
+        return Ok(result);
+    }
 }
