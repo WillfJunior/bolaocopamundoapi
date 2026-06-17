@@ -427,9 +427,11 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         await EnsureMemberAsync(groupId, userId);
 
         var baseRanking = await GetGroupRankingAsync(groupId, userId);
+
         var inProgressMatches = await context.Matches
-            .Where(m => m.Status == MatchStatus.InProgress || m.Status == MatchStatus.Finished)
-            .Include(m => m.Predictions.Where(p => baseRanking.Select(r => r.UserId).Contains(p.UserId)))
+            .Where(m => (m.Status == MatchStatus.InProgress || m.Status == MatchStatus.Finished)
+                     && m.HomeScore.HasValue && m.AwayScore.HasValue)
+            .Include(m => m.Predictions)
             .ToListAsync();
 
         var result = baseRanking.Select(entry =>
