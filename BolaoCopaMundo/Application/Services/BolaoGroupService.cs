@@ -253,22 +253,35 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
             .Select(m => m.UserId)
             .ToListAsync();
 
-        var raw = await context.Users
+        var users = await context.Users
             .Where(u => memberIds.Contains(u.Id) && u.IsActive)
+            .Include(u => u.Predictions)
+            .ToListAsync();
+
+        var raw = users
             .Select(u => new
             {
-                u.Id, u.Name, u.PhotoUrl,
-                TotalPoints      = u.Predictions.Where(p => p.IsProcessed && p.GroupId == groupId).Sum(p => p.Points),
-                ExactScores      = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 3),
-                CorrectOutcomes  = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 1),
-                TotalPredictions = u.Predictions.Count(p => p.GroupId == groupId),
-                Errors = u.Predictions.Count(p => p.IsProcessed && p.GroupId == groupId && p.Points == 0)
+                u.Id,
+                u.Name,
+                u.PhotoUrl,
+                Predictions = u.Predictions.Where(p => p.GroupId == groupId).ToList()
+            })
+            .Select(u => new
+            {
+                u.Id,
+                u.Name,
+                u.PhotoUrl,
+                TotalPoints = u.Predictions.Where(p => p.IsProcessed).Sum(p => p.Points),
+                ExactScores = u.Predictions.Count(p => p.IsProcessed && p.Points == 3),
+                CorrectOutcomes = u.Predictions.Count(p => p.IsProcessed && p.Points == 1),
+                TotalPredictions = u.Predictions.Count(),
+                Errors = u.Predictions.Count(p => p.IsProcessed && p.Points == 0)
             })
             .OrderByDescending(u => u.TotalPoints)
             .ThenByDescending(u => u.ExactScores)
             .ThenByDescending(u => u.CorrectOutcomes)
             .ThenBy(u => u.Name)
-            .ToListAsync();
+            .ToList();
 
         var result = raw.Select((e, i) => new RankingEntryDto(
             i + 1, e.Id, e.Name, e.PhotoUrl,
