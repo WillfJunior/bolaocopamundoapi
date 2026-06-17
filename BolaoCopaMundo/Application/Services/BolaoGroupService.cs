@@ -248,48 +248,64 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         if (cache.TryGetValue(cacheKey, out List<RankingEntryDto>? cachedRanking))
             return cachedRanking!;
 
+        // Buscar IDs dos membros ativos
         var memberIds = await context.BolaoGroupMembers
             .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Active)
             .Select(m => m.UserId)
             .ToListAsync();
 
+        if (memberIds.Count == 0)
+            return new List<RankingEntryDto>();
+
+        // Buscar usuários com suas previsões
         var users = await context.Users
-            .Where(u => memberIds.Contains(u.Id) && u.IsActive)
             .Include(u => u.Predictions)
+            .Where(u => memberIds.Contains(u.Id) && u.IsActive)
             .ToListAsync();
 
-        var raw = users
-            .Select(u => new
-            {
-                u.Id,
-                u.Name,
-                u.PhotoUrl,
-                Predictions = u.Predictions.Where(p => p.GroupId == groupId).ToList()
-            })
-            .Select(u => new
-            {
-                u.Id,
-                u.Name,
-                u.PhotoUrl,
-                TotalPoints = u.Predictions.Where(p => p.IsProcessed).Sum(p => p.Points),
-                ExactScores = u.Predictions.Count(p => p.IsProcessed && p.Points == 3),
-                CorrectOutcomes = u.Predictions.Count(p => p.IsProcessed && p.Points == 1),
-                TotalPredictions = u.Predictions.Count(),
-                Errors = u.Predictions.Count(p => p.IsProcessed && p.Points == 0)
-            })
-            .OrderByDescending(u => u.TotalPoints)
-            .ThenByDescending(u => u.ExactScores)
-            .ThenByDescending(u => u.CorrectOutcomes)
-            .ThenBy(u => u.Name)
+        // Processar tudo em memória (LINQ to Objects)
+        var ranking = new List<RankingEntryDto>();
+        var userStats = new List<(Guid Id, string Name, string PhotoUrl, int Points, int Exact, int Partial, int Total, int Errors)>();
+
+        foreach (var user in users)
+        {
+            var predictions = user.Predictions.Where(p => p.GroupId == groupId).ToList();
+            var totalPoints = predictions.Where(p => p.IsProcessed).Sum(p => p.Points);
+            var exactScores = predictions.Count(p => p.IsProcessed && p.Points == 3);
+            var correctOutcomes = predictions.Count(p => p.IsProcessed && p.Points == 1);
+            var totalPredictions = predictions.Count;
+            var errors = predictions.Count(p => p.IsProcessed && p.Points == 0);
+
+            userStats.Add((user.Id, user.Name, user.PhotoUrl, totalPoints, exactScores, correctOutcomes, totalPredictions, errors));
+        }
+
+        // Ordenar
+        var sorted = userStats
+            .OrderByDescending(x => x.Points)
+            .ThenByDescending(x => x.Exact)
+            .ThenByDescending(x => x.Partial)
+            .ThenBy(x => x.Name)
             .ToList();
 
-        var result = raw.Select((e, i) => new RankingEntryDto(
-            i + 1, e.Id, e.Name, e.PhotoUrl,
-            e.TotalPoints, e.ExactScores, e.CorrectOutcomes, e.TotalPredictions, e.Errors
-        )).ToList();
+        // Criar resultado
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            var stat = sorted[i];
+            ranking.Add(new RankingEntryDto(
+                Position: i + 1,
+                UserId: stat.Id,
+                UserName: stat.Name,
+                UserPhotoUrl: stat.PhotoUrl,
+                TotalPoints: stat.Points,
+                ExactScores: stat.Exact,
+                CorrectOutcomes: stat.Partial,
+                TotalPredictions: stat.Total,
+                Errors: stat.Errors
+            ));
+        }
 
-        cache.Set(cacheKey, result, TimeSpan.FromSeconds(60));
-        return result;
+        cache.Set(cacheKey, ranking, TimeSpan.FromSeconds(60));
+        return ranking;
     }
 
     public void InvalidateGroupCache(Guid groupId)
@@ -441,11 +457,29 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
 
         var baseRanking = await GetGroupRankingAsync(groupId, userId);
 
-        var inProgressMatches = await context.Matches
-            .Where(m => (m.Status == MatchStatus.InProgress || m.Status == MatchStatus.Finished)
-                     && m.HomeScore.HasValue && m.AwayScore.HasValue)
-            .Include(m => m.Predictions)
+        // Buscar matches com scores definidos
+        var matchesWithScores = await context.Matches
+            .Where(m => m.HomeScore.HasValue && m.AwayScore.HasValue)
             .ToListAsync();
+
+        // Filtrar apenas InProgress ou Finished
+        var inProgressMatches = matchesWithScores
+            .Where(m => m.Status == MatchStatus.InProgress || m.Status == MatchStatus.Finished)
+            .ToList();
+
+        // Carregar as previsões para os matches
+        if (inProgressMatches.Any())
+        {
+            var matchIds = inProgressMatches.Select(m => m.Id).ToList();
+            var predictions = await context.Predictions
+                .Where(p => matchIds.Contains(p.MatchId))
+                .ToListAsync();
+
+            foreach (var match in inProgressMatches)
+            {
+                match.Predictions = predictions.Where(p => p.MatchId == match.Id).ToList();
+            }
+        }
 
         var result = baseRanking.Select(entry =>
         {
