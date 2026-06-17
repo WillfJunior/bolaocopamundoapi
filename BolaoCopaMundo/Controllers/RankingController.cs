@@ -36,4 +36,11 @@ public class RankingController(RankingService rankingService, BolaoGroupService 
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         return Ok(await rankingService.GetUserRankingsByGroupAsync(userId));
     }
+
+    [HttpGet("real-time/{groupId:guid}")]
+    public async Task<ActionResult<List<RealTimeRankingEntryDto>>> GetRealTimeGroupRanking(Guid groupId)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return Ok(await bolaoGroupService.GetRealTimeGroupRankingAsync(groupId, userId));
+    }
 }

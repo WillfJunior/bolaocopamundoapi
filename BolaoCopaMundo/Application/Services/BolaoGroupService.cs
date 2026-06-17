@@ -422,6 +422,72 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         );
     }
 
+    public async Task<List<RealTimeRankingEntryDto>> GetRealTimeGroupRankingAsync(Guid groupId, Guid userId)
+    {
+        await EnsureMemberAsync(groupId, userId);
+
+        var baseRanking = await GetGroupRankingAsync(groupId, userId);
+        var inProgressMatches = await context.Matches
+            .Where(m => m.Status == MatchStatus.InProgress || m.Status == MatchStatus.Finished)
+            .Include(m => m.Predictions.Where(p => baseRanking.Select(r => r.UserId).Contains(p.UserId)))
+            .ToListAsync();
+
+        var result = baseRanking.Select(entry =>
+        {
+            var momentaryPoints = CalculateMomentaryPoints(entry.UserId, inProgressMatches);
+            var totalWithMomentary = entry.TotalPoints + momentaryPoints;
+            var newPosition = baseRanking.Count(e =>
+            {
+                var eMomentary = CalculateMomentaryPoints(e.UserId, inProgressMatches);
+                return (e.TotalPoints + eMomentary) > totalWithMomentary ||
+                       ((e.TotalPoints + eMomentary) == totalWithMomentary && e.ExactScores > entry.ExactScores);
+            }) + 1;
+
+            return new RealTimeRankingEntryDto(
+                Position: entry.Position,
+                UserId: entry.UserId,
+                UserName: entry.UserName,
+                UserPhotoUrl: entry.UserPhotoUrl,
+                TotalPoints: entry.TotalPoints,
+                ExactScores: entry.ExactScores,
+                CorrectOutcomes: entry.CorrectOutcomes,
+                TotalPredictions: entry.TotalPredictions,
+                Errors: entry.Errors,
+                MomentaryPoints: momentaryPoints,
+                MomentaryPosition: newPosition,
+                PositionChange: entry.Position - newPosition,
+                IsLeader: newPosition == 1,
+                PointsDifference: (baseRanking.FirstOrDefault()?.TotalPoints ?? 0) +
+                    (inProgressMatches.Count > 0 ? CalculateMomentaryPoints(baseRanking.First().UserId, inProgressMatches) : 0) - totalWithMomentary,
+                UpdatedAt: DateTime.UtcNow
+            );
+        }).ToList();
+
+        return result.OrderByDescending(r => r.TotalPoints + r.MomentaryPoints)
+            .ThenByDescending(r => r.ExactScores)
+            .ThenByDescending(r => r.CorrectOutcomes)
+            .ToList();
+    }
+
+    private int CalculateMomentaryPoints(Guid userId, List<Match> inProgressMatches)
+    {
+        int momentaryPoints = 0;
+
+        foreach (var match in inProgressMatches)
+        {
+            var prediction = match.Predictions.FirstOrDefault(p => p.UserId == userId);
+            if (prediction is null || match.HomeScore is null || match.AwayScore is null)
+                continue;
+
+            momentaryPoints += ScoringService.CalculatePoints(
+                prediction.HomeScore, prediction.AwayScore,
+                match.HomeScore.Value, match.AwayScore.Value
+            );
+        }
+
+        return momentaryPoints;
+    }
+
     public async Task RemoveMemberAsync(Guid groupId, Guid adminId, Guid targetUserId)
     {
         await EnsureAdminAsync(groupId, adminId);

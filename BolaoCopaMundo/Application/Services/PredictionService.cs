@@ -108,6 +108,15 @@ public class PredictionService(AppDbContext context, IMemoryCache cache, IHubCon
             cache.Remove($"ranking:group:{groupId}");
 
         await hubContext.Clients.All.SendAsync("rankings-updated", matchId);
+
+        foreach (var groupId in affectedGroupIds)
+        {
+            await hubContext.Clients.Group($"group-ranking-{groupId}")
+                .SendAsync("group-ranking-updated", groupId, matchId);
+        }
+
+        await hubContext.Clients.Group("global-ranking")
+            .SendAsync("global-ranking-updated", matchId);
     }
 
     private static PredictionDto ToDto(Prediction p) =>

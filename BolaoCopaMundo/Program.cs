@@ -89,6 +89,7 @@ builder.Services.AddScoped<MatchService>();
 builder.Services.AddScoped<PredictionService>();
 builder.Services.AddScoped<RankingService>();
 builder.Services.AddScoped<BolaoGroupService>();
+builder.Services.AddScoped<GroupStandingService>();
 
 // ─── Jobs Hangfire ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<UpdateMatchResultsJob>();

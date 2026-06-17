@@ -3,6 +3,7 @@ using BolaoCopaMundo.Domain.Enums;
 using BolaoCopaMundo.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using BolaoCopaMundo.Domain.Entities;
 
 namespace BolaoCopaMundo.Application.Services;
 
@@ -115,5 +116,24 @@ public class RankingService(AppDbContext context, IMemoryCache cache)
         }
 
         return result;
+    }
+
+    private int CalculateMomentaryPoints(Guid userId, List<Domain.Entities.Match> inProgressMatches)
+    {
+        int momentaryPoints = 0;
+
+        foreach (var match in inProgressMatches)
+        {
+            var prediction = match.Predictions.FirstOrDefault(p => p.UserId == userId);
+            if (prediction is null || match.HomeScore is null || match.AwayScore is null)
+                continue;
+
+            momentaryPoints += ScoringService.CalculatePoints(
+                prediction.HomeScore, prediction.AwayScore,
+                match.HomeScore.Value, match.AwayScore.Value
+            );
+        }
+
+        return momentaryPoints;
     }
 }
