@@ -248,30 +248,28 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         if (cache.TryGetValue(cacheKey, out List<RankingEntryDto>? cachedRanking))
             return cachedRanking!;
 
-        // Buscar IDs dos membros ativos
-        var memberIds = await context.BolaoGroupMembers
+        // Buscar membros ativos com suas informações
+        var members = await context.BolaoGroupMembers
+            .Include(m => m.User)
             .Where(m => m.GroupId == groupId && m.Status == MemberStatus.Active)
-            .Select(m => m.UserId)
             .ToListAsync();
 
-        if (memberIds.Count == 0)
+        if (members.Count == 0)
             return new List<RankingEntryDto>();
 
-        // Buscar usuários simples (sem Include)
-        var users = await context.Users
-            .Where(u => memberIds.Contains(u.Id) && u.IsActive)
-            .ToListAsync();
+        var userIds = members.Select(m => m.UserId).ToList();
 
-        // Buscar TODAS as previsões do grupo
+        // Buscar TODAS as previsões do grupo em uma query simples
         var allPredictions = await context.Predictions
-            .Where(p => p.GroupId == groupId && memberIds.Contains(p.UserId))
+            .Where(p => p.GroupId == groupId)
             .ToListAsync();
 
         // Processar em memória
         var userStats = new List<(Guid Id, string Name, string PhotoUrl, int Points, int Exact, int Partial, int Total, int Errors)>();
 
-        foreach (var user in users)
+        foreach (var member in members)
         {
+            var user = member.User;
             var userPredictions = allPredictions.Where(p => p.UserId == user.Id).ToList();
             var totalPoints = userPredictions.Where(p => p.IsProcessed).Sum(p => p.Points);
             var exactScores = userPredictions.Count(p => p.IsProcessed && p.Points == 3);
