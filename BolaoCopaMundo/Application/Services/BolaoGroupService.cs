@@ -454,24 +454,29 @@ public class BolaoGroupService(AppDbContext context, IConfiguration configuratio
         if (baseRanking.Count == 0)
             return new List<RealTimeRankingEntryDto>();
 
-        // Buscar matches em progresso com scores (query bem simples)
+        // Buscar apenas matches em progresso com scores (sem finished para evitar contar pontos já processados)
         var matches = await context.Matches
-            .Where(m => m.Status == MatchStatus.InProgress || m.Status == MatchStatus.Finished)
+            .Where(m => m.Status == MatchStatus.InProgress)
             .Where(m => m.HomeScore.HasValue && m.AwayScore.HasValue)
             .ToListAsync();
 
         if (matches.Count == 0)
             return baseRanking.Select(e => MapToRealTimeRanking(e, 0, e.TotalPoints, 0)).ToList();
 
-        // Buscar previsões para o grupo (sem Contains)
-        var matchPredictions = await context.Predictions
+        // Buscar predictions do grupo e filtrar em memória para os matches em progresso
+        var allGroupPredictions = await context.Predictions
             .Where(p => p.GroupId == groupId)
             .ToListAsync();
 
-        // Associar previsões aos matches em memória (filtrar por match)
+        var matchIds = matches.Select(m => m.Id).ToHashSet();
+        var inProgressPredictions = allGroupPredictions
+            .Where(p => matchIds.Contains(p.MatchId))
+            .ToList();
+
+        // Associar previsões aos matches em memória
         foreach (var match in matches)
         {
-            match.Predictions = matchPredictions
+            match.Predictions = inProgressPredictions
                 .Where(p => p.MatchId == match.Id)
                 .ToList();
         }
