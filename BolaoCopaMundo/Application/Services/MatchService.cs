@@ -78,11 +78,7 @@ public class MatchService(AppDbContext context)
         g.Matches.OrderBy(m => m.Matchday).ThenBy(m => m.MatchDate).Select(ToMatchDto).ToList()
     );
 
-    // MatchDate armazenado em UTC; exibe em BRT (UTC-3) para o público brasileiro
-    private static readonly TimeZoneInfo Brt =
-        TimeZoneInfo.FindSystemTimeZoneById(
-            OperatingSystem.IsWindows() ? "E. South America Standard Time" : "America/Sao_Paulo");
-
+    // MatchDate já armazenado em BRT (UTC-3) após correção via migration
     internal static MatchDto ToMatchDto(Domain.Entities.Match m) => new(
         m.Id,
         m.HomeTeam is null ? null : new TeamDto(m.HomeTeam.Id, m.HomeTeam.Name, m.HomeTeam.FifaCode, m.HomeTeam.FlagUrl),
@@ -90,7 +86,7 @@ public class MatchService(AppDbContext context)
         m.Group?.Name,
         m.Phase,
         m.Status,
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(m.MatchDate, DateTimeKind.Utc), Brt),
+        m.MatchDate,
         m.HomeScore,
         m.AwayScore,
         m.Venue,

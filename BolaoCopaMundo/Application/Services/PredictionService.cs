@@ -46,10 +46,8 @@ public class PredictionService(AppDbContext context, IMemoryCache cache, IHubCon
         if (match.Status != MatchStatus.Scheduled)
             throw new InvalidOperationException("Não é possível palpitar em jogos que já começaram ou encerraram.");
 
-        var matchDateBrt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(match.MatchDate, DateTimeKind.Utc), Brt);
-        var nowBrt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc), Brt);
-
-        if (matchDateBrt <= nowBrt.AddHours(1))
+        var nowBrt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Brt);
+        if (match.MatchDate <= nowBrt.AddHours(1))
             throw new InvalidOperationException("O prazo para palpitar neste jogo encerrou. Palpites são bloqueados 1 hora antes do início.");
 
         if (match.HomeTeamId is null || match.AwayTeamId is null)
