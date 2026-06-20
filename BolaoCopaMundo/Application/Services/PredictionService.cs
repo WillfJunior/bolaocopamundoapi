@@ -11,6 +11,10 @@ namespace BolaoCopaMundo.Application.Services;
 
 public class PredictionService(AppDbContext context, IMemoryCache cache, IHubContext<RankingHub> hubContext)
 {
+    private static readonly TimeZoneInfo Brt =
+        TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "E. South America Standard Time" : "America/Sao_Paulo");
+
     public async Task<List<PredictionDto>> GetUserPredictionsAsync(Guid userId, Guid groupId)
     {
         return await context.Predictions
@@ -42,7 +46,10 @@ public class PredictionService(AppDbContext context, IMemoryCache cache, IHubCon
         if (match.Status != MatchStatus.Scheduled)
             throw new InvalidOperationException("Não é possível palpitar em jogos que já começaram ou encerraram.");
 
-        if (match.MatchDate <= DateTime.UtcNow.AddHours(1))
+        var matchDateBrt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(match.MatchDate, DateTimeKind.Utc), Brt);
+        var nowBrt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc), Brt);
+
+        if (matchDateBrt <= nowBrt.AddHours(1))
             throw new InvalidOperationException("O prazo para palpitar neste jogo encerrou. Palpites são bloqueados 1 hora antes do início.");
 
         if (match.HomeTeamId is null || match.AwayTeamId is null)
