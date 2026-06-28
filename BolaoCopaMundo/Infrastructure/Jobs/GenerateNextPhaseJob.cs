@@ -37,6 +37,18 @@ public class GenerateNextPhaseJob(AppDbContext context, ILogger<GenerateNextPhas
         new(2026, 7, 19, 20, 0, 0, DateTimeKind.Utc),
     ];
 
+    private static readonly DateTime[] Round16Dates =
+    [
+        new(2026, 7, 21, 16, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 21, 20, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 22, 16, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 22, 20, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 23, 16, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 23, 20, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 24, 16, 0, 0, DateTimeKind.Utc),
+        new(2026, 7, 24, 20, 0, 0, DateTimeKind.Utc),
+    ];
+
     public async Task GenerateRoundOf32Async()
     {
         // Verifica se todos os jogos da fase de grupos terminaram
@@ -110,6 +122,81 @@ public class GenerateNextPhaseJob(AppDbContext context, ILogger<GenerateNextPhas
         await context.SaveChangesAsync();
 
         logger.LogInformation("{Count} jogos das oitavas de final gerados.", matches.Count);
+    }
+
+    public async Task GenerateRoundOf16Async()
+    {
+        // Verifica se todos os jogos das oitavas terminaram
+        var pendingRound32Matches = await context.Matches
+            .AnyAsync(m => m.Phase == MatchPhase.RoundOf32 && m.Status != MatchStatus.Finished);
+
+        if (pendingRound32Matches)
+        {
+            logger.LogWarning("Oitavas de final não concluídas. 16 avos não gerados.");
+            return;
+        }
+
+        var alreadyGenerated = await context.Matches.AnyAsync(m => m.Phase == MatchPhase.RoundOf16);
+        if (alreadyGenerated)
+        {
+            logger.LogInformation("16 avos de final já gerados.");
+            return;
+        }
+
+        // Obtém todos os jogos das oitavas ordenados por ID
+        var round32Matches = await context.Matches
+            .Include(m => m.HomeTeam)
+            .Include(m => m.AwayTeam)
+            .Where(m => m.Phase == MatchPhase.RoundOf32 && m.Status == MatchStatus.Finished)
+            .OrderBy(m => m.Id)
+            .ToListAsync();
+
+        if (round32Matches.Count < 16)
+        {
+            logger.LogWarning("Menos de 16 jogos das oitavas encontrados.");
+            return;
+        }
+
+        var round16Matches = new List<Match>();
+        var dateIndex = 0;
+
+        // Agrupa os jogos em pares (1vs2, 3vs4, 5vs6, 7vs8, 9vs10, 11vs12, 13vs14, 15vs16)
+        // Cada dupla de jogos das oitavas gera um jogo das quartas (16 avos)
+        for (int i = 0; i < 16; i += 2)
+        {
+            var match1 = round32Matches[i];
+            var match2 = round32Matches[i + 1];
+
+            // Determina os vencedores (HomeScore > AwayScore = vitória do time da casa)
+            var winner1TeamId = match1.HomeScore > match1.AwayScore ? match1.HomeTeamId : match1.AwayTeamId;
+            var winner2TeamId = match2.HomeScore > match2.AwayScore ? match2.HomeTeamId : match2.AwayTeamId;
+
+            var winner1Name = match1.HomeScore > match1.AwayScore
+                ? match1.HomeTeam?.Name ?? "?"
+                : match1.AwayTeam?.Name ?? "?";
+            var winner2Name = match2.HomeScore > match2.AwayScore
+                ? match2.HomeTeam?.Name ?? "?"
+                : match2.AwayTeam?.Name ?? "?";
+
+            round16Matches.Add(new Match
+            {
+                HomeTeamId = winner1TeamId,
+                AwayTeamId = winner2TeamId,
+                Phase = MatchPhase.RoundOf16,
+                Status = MatchStatus.Scheduled,
+                Matchday = 1,
+                MatchDate = Round16Dates[dateIndex % Round16Dates.Length],
+                MatchLabel = $"{winner1Name} vs {winner2Name}",
+                Venue = null
+            });
+
+            dateIndex++;
+        }
+
+        await context.Matches.AddRangeAsync(round16Matches);
+        await context.SaveChangesAsync();
+
+        logger.LogInformation("{Count} jogos dos 16 avos de final gerados.", round16Matches.Count);
     }
 
     private async Task<List<GroupStanding>> GetGroupStandingsAsync()

@@ -82,6 +82,13 @@ public class AdminController(
         return Ok(new { message = "Oitavas de final geradas com sucesso." });
     }
 
+    [HttpPost("generate-round-of-16")]
+    public async Task<IActionResult> GenerateRoundOf16()
+    {
+        await nextPhaseJob.GenerateRoundOf16Async();
+        return Ok(new { message = "16 avos de final gerados com sucesso." });
+    }
+
     [HttpPost("send-notification")]
     public async Task<IActionResult> SendNotification([FromBody] SendNotificationRequest request)
     {
