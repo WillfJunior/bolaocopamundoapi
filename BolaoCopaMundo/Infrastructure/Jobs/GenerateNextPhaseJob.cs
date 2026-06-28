@@ -94,13 +94,13 @@ public class GenerateNextPhaseJob(AppDbContext context, ILogger<GenerateNextPhas
             dateIndex++;
         }
 
-        // 4 jogos extras com os melhores terceiros colocados
+        // 4 jogos extras com os melhores terceiros colocados (8 times)
         var bestThirds = standings
             .Where(s => s.Position == 3)
             .OrderByDescending(s => s.Points)
             .ThenByDescending(s => s.GoalDifference)
             .ThenByDescending(s => s.GoalsFor)
-            .Take(4)
+            .Take(8)
             .ToList();
 
         for (int i = 0; i < bestThirds.Count / 2; i++)
